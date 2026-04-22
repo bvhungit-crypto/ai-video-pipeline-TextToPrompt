@@ -68,7 +68,7 @@ class PromptEngine:
         if not human_subject:
             variants = (
                 f"{base_subject}; foreground objects settle before fine particles shift",
-                f"{base_subject}; object positions hold while small surface elements move",
+                f"{base_subject}; object positions hold, small surface elements move",
                 f"{base_subject}; frame starts stable, then a slight object shift appears",
             )
             return variants[segment_index % len(variants)]
@@ -98,7 +98,7 @@ class PromptEngine:
         variants = (
             f"{env}; uneven light wraps across surfaces with falloff at the frame edges",
             f"{env}; light stays irregular, with dim zones behind foreground objects",
-            f"{env}; soft wrap remains on primary objects while side areas stay darker",
+            f"{env}; soft wrap remains on primary objects, side areas stay darker",
         )
         return variants[segment_index % len(variants)]
 
@@ -122,7 +122,7 @@ class PromptEngine:
             variants = (
                 "Wide framing holds full spatial context and then tightens slightly",
                 "Wide framing keeps room geometry clear before a subtle inward shift",
-                "Wide framing observes the full scene and reduces distance gradually",
+                "Wide framing keeps the full scene in view and reduces distance gradually",
             )
             return variants[segment_index % len(variants)]
         if camera == "close":
@@ -151,7 +151,7 @@ class PromptEngine:
             variants = (
                 "Over 6 seconds the frame compresses slightly and micro-shifts settle",
                 "Over 6 seconds focus tightens and edge movement slows",
-                "Over 6 seconds framing remains tight while detail balance shifts slightly",
+                "Over 6 seconds framing remains tight, detail balance shifts slightly",
             )
             return variants[segment_index % len(variants)]
         variants = (
@@ -214,6 +214,7 @@ class PromptEngine:
     @staticmethod
     def _clean_sentence(value: Any) -> str:
         text = " ".join(str(value).strip().split()).strip(" ,;.")
+        text = PromptEngine._strip_explanatory_phrases(text)
         if not text:
             return ""
         if text.lower().startswith("duration:"):
@@ -221,6 +222,20 @@ class PromptEngine:
         if text[-1] not in ".!?":
             text += "."
         return text
+
+    @staticmethod
+    def _strip_explanatory_phrases(text: str) -> str:
+        replacements = {
+            " as if ": " ",
+            " suggesting ": " ",
+            " while ": ", ",
+        }
+        normalized = f" {text} "
+        for source, target in replacements.items():
+            normalized = normalized.replace(source, target)
+        normalized = " ".join(normalized.split())
+        normalized = normalized.replace(" ,", ",").strip(" ,;.")
+        return normalized
 
     @staticmethod
     def _has_human_subject(subject: str, details: Any) -> bool:
