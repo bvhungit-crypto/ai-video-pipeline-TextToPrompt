@@ -90,7 +90,7 @@ def run_pipeline(input_path: Path, output_path: Path) -> list[dict[str, Any]]:
         print("Warning: timeline is empty.")
 
     print("Generating prompts...")
-    output = pipeline_runner.run(timeline)
+    output = pipeline_runner.run(timeline, style=style, mode=mode)
     if not output:
         print("Warning: no prompts were generated.")
 
@@ -121,10 +121,6 @@ def main() -> None:
     run_pipeline(input_path=input_path, output_path=output_path)
     print("Done")
 
-
-if __name__ == "__main__":
-    main()
-
 def run_pipeline_from_text(
     srt_text: str,
     style: str,
@@ -138,16 +134,17 @@ def run_pipeline_from_text(
     pipeline_runner = _pipeline_runner(pipeline_type=pipeline_type, style=style, mode=mode)
 
     timeline = build_timeline(timeline_engine, srt_text)
-    output = pipeline_runner.run(timeline)
+    output = pipeline_runner.run(timeline, style=style, mode=mode)
     return output
 
 
 def _pipeline_runner(pipeline_type: str, style: str, mode: str):
-    select_pipeline = MetaController.select_pipeline
-    pipeline_type = select_pipeline(style, mode)
-
     if pipeline_type == "animation":
         return AnimationPipeline(style=style)
     if pipeline_type == "montage":
         return MontagePipeline(style=style)
     return DocumentaryPipeline(style=style, mode=mode)
+
+
+if __name__ == "__main__":
+    main()

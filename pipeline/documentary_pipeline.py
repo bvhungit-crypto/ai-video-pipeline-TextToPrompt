@@ -15,7 +15,12 @@ class DocumentaryPipeline:
         self.style = style
         self.mode = mode
 
-    def run(self, timeline: list[dict]) -> list[dict]:
+    def run(
+        self,
+        timeline: list[dict],
+        style: str | None = None,
+        mode: str | None = None,
+    ) -> list[dict]:
         segments = self._packaging_engine.package(timeline)
         segments = self._visual_planning_engine.plan(segments)
         segments = self._scene_engine.enhance(segments, mode=self.mode)

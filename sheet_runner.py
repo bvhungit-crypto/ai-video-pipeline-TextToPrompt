@@ -3,6 +3,8 @@ import json
 import base64
 import time
 import os
+import subprocess
+from pathlib import Path
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
@@ -60,6 +62,25 @@ def upload_to_github(filename, content):
     return f"https://raw.githubusercontent.com/{REPO}/main/{filename}"
 
 
+def publish_rendered_file(session_id, content):
+    rendered_path = Path("data") / "rendered" / f"{session_id}.json"
+    rendered_path.parent.mkdir(parents=True, exist_ok=True)
+    rendered_path.write_text(content, encoding="utf-8")
+
+    subprocess.run(["git", "add", "."], check=True)
+
+    commit_cmd = ["git", "commit", "-m", f"auto upload {session_id}"]
+    commit_run = subprocess.run(commit_cmd, capture_output=True, text=True)
+    if commit_run.returncode != 0:
+        combined = f"{commit_run.stdout}\n{commit_run.stderr}".lower()
+        if "nothing to commit" not in combined:
+            raise RuntimeError(commit_run.stderr.strip() or "git commit failed")
+
+    subprocess.run(["git", "push"], check=True)
+
+    return f"https://raw.githubusercontent.com/{REPO}/main/data/rendered/{session_id}.json"
+
+
 # ========= MAIN LOOP =========
 def run():
     for sheet_config in config["sheets"]:
@@ -112,9 +133,9 @@ def run():
                 # 3. Convert JSON
                 prompt_text = json.dumps(output, ensure_ascii=False, indent=2)
 
-                # 4. Upload GitHub
-                filename = f"{sheet_config['name']}/row_{i}_{int(time.time())}.json"
-                github_link = upload_to_github(filename, prompt_text)
+                # 4. Save rendered file + git upload
+                session_id = f"{sheet_config['name']}_row_{i}_{int(time.time())}"
+                github_link = publish_rendered_file(session_id, prompt_text)
 
                 # 5. Update sheet
                 sheet.update_cell(i, col_map["Prompt"], github_link)

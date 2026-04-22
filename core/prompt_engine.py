@@ -17,22 +17,31 @@ class PromptEngine:
         details_items = visual_plan.get("details", [])
         details = self._details_line(details_items)
         environment = self._clean_sentence(visual_plan.get("environment", "Neutral indoor light"))
-        camera_value = segment.get("camera", "medium")
-        shot = self._shot_line(camera_value)
-        motion = self._motion_for_shot(
+        camera_value = str(segment.get("camera", "medium")).strip().lower()
+        motion = self._clean_sentence(visual_plan.get("motion", "minor background movement"))
+
+        physical_action = self.build_physical_action(subject, motion, camera_value)
+        light_behavior = self.build_light_behavior(environment, details)
+        body_tension = self.build_body_tension_layer(motion, details)
+        camera_intent = self.build_camera_intent(camera_value)
+        frame_evolution = self.build_frame_evolution(camera_value)
+
+        shot_safe_motion = self._motion_for_shot(
             camera=camera_value,
-            motion=visual_plan.get("motion", "minor background movement"),
+            motion=motion,
             details=details_items,
-            environment=visual_plan.get("environment", ""),
+            environment=environment,
         )
 
         lines = [
             self._clean_sentence(self.style_line),
-            subject,
+            self._clean_sentence(physical_action),
+            self._clean_sentence(light_behavior),
+            self._clean_sentence(body_tension),
+            self._clean_sentence(camera_intent),
+            self._clean_sentence(frame_evolution),
             details,
-            environment,
-            shot,
-            motion,
+            self._clean_sentence(shot_safe_motion),
             "Duration: 6 seconds",
         ]
         deduped: list[str] = []
@@ -44,6 +53,50 @@ class PromptEngine:
             seen.add(key)
             deduped.append(line)
         return "\n\n".join(deduped)
+
+    def build_physical_action(self, subject: str, motion: str, camera: str) -> str:
+        base_subject = subject.rstrip(".")
+        if camera == "close":
+            return (
+                f"{base_subject}; weight shifts first, then the hand follows with slight delay, "
+                "and the smallest paper edge responds a beat later"
+            )
+        if camera == "wide":
+            return (
+                f"{base_subject}; weight shifts first, then the body follows with slight delay, "
+                "while movement stays restrained in the full frame"
+            )
+        return (
+            f"{base_subject}; weight transfers through the feet before the torso follows, "
+            "with a brief pause before the final adjustment"
+        )
+
+    def build_light_behavior(self, environment: str, details: str) -> str:
+        env = environment.rstrip(".")
+        return (
+            f"{env}; uneven light wraps softly across surfaces, "
+            "with falloff at frame edges and dim pockets behind foreground objects"
+        )
+
+    def build_body_tension_layer(self, motion: str, details: str) -> str:
+        return (
+            "Breath stays shallow, shoulders hold slight tension, fingers remain controlled, "
+            "and the jaw line stays set without overt expression"
+        )
+
+    def build_camera_intent(self, camera: str) -> str:
+        if camera == "wide":
+            return "Wide framing that observes spatial balance before slowly tightening attention"
+        if camera == "close":
+            return "Close framing that commits to surface detail while holding controlled distance"
+        return "Medium framing that slowly closes distance without fully committing"
+
+    def build_frame_evolution(self, camera: str) -> str:
+        if camera == "wide":
+            return "Within 6 seconds the frame tightens subtly, drift compresses depth, and balance shifts inward"
+        if camera == "close":
+            return "Within 6 seconds the frame compresses slightly, focus tightens, and micro-shifts settle into stillness"
+        return "Within 6 seconds the frame drifts forward, compresses gently, and settles into a tighter center"
 
     @staticmethod
     def _details_line(details: Any) -> str:
@@ -60,15 +113,6 @@ class PromptEngine:
                     unique_parts.append(part)
                 return PromptEngine._clean_sentence(", ".join(unique_parts))
         return "Wood desk surface, paper stack, and wall clock"
-
-    @staticmethod
-    def _shot_line(camera: Any) -> str:
-        value = str(camera).strip().lower()
-        if value == "wide":
-            return "Wide shot, handheld camera"
-        if value == "close":
-            return "Close shot, handheld camera"
-        return "Medium shot, handheld camera"
 
     @staticmethod
     def _motion_for_shot(camera: Any, motion: Any, details: Any, environment: Any) -> str:

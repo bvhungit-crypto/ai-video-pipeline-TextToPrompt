@@ -9,7 +9,12 @@ class AnimationPipeline:
         self._packaging_engine = PackagingEngine()
         self.style_line = STYLE_PRESETS.get(style, STYLE_PRESETS["2d_animation"])
 
-    def run(self, timeline: list[dict]) -> list[dict]:
+    def run(
+        self,
+        timeline: list[dict],
+        style: str | None = None,
+        mode: str | None = None,
+    ) -> list[dict]:
         segments = self._packaging_engine.package(timeline)
         output: list[dict] = []
         for index, seg in enumerate(segments):
