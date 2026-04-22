@@ -3,6 +3,7 @@ import json
 import base64
 import time
 import os
+import re
 import subprocess
 from pathlib import Path
 import gspread
@@ -15,7 +16,9 @@ from main import run_pipeline_from_text
 CREDENTIALS_FILE = "credentials.json"
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-REPO = "bvhungit-crypto/youtube-scripts"
+GITHUB_OWNER = "bvhungit-crypto"
+REPO_NAME = "ai-video-pipeline-TextToPrompt"
+REPO = f"{GITHUB_OWNER}/{REPO_NAME}"
 
 
 # ========= GOOGLE AUTH =========
@@ -59,16 +62,43 @@ def upload_to_github(filename, content):
     res = requests.put(url, headers=headers, json=data)
     res.raise_for_status()
 
-    return f"https://raw.githubusercontent.com/{REPO}/main/{filename}"
+    return f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{REPO_NAME}/main/{filename}"
 
 
-def publish_rendered_file(session_id, content):
-    rendered_path = Path("data") / "rendered" / f"{session_id}.json"
+def clean_filename(text):
+    normalized = re.sub(r"[^a-z0-9\s-]", "", str(text).lower())
+    normalized = re.sub(r"\s+", "-", normalized.strip())
+    normalized = re.sub(r"-{2,}", "-", normalized)
+    return normalized.strip("-")
+
+
+def build_render_filename(row, fallback_channel, date_str):
+    channel = clean_filename(row.get("Channel") or row.get("channel") or fallback_channel) or "channel"
+    title_raw = (
+        row.get("Title")
+        or row.get("title")
+        or row.get("Name")
+        or row.get("name")
+        or "untitled"
+    )
+    title_clean = clean_filename(title_raw)
+    words = [part for part in title_clean.split("-") if part]
+    if len(words) > 10:
+        words = words[:10]
+    elif len(words) < 6 and words:
+        words = words[: max(1, len(words))]
+    title_short = "-".join(words) if words else "untitled"
+    return f"{channel}_{title_short}_{date_str}.json"
+
+
+def publish_rendered_file(filename, content):
+    rendered_path = Path("data") / "rendered" / filename
     rendered_path.parent.mkdir(parents=True, exist_ok=True)
     rendered_path.write_text(content, encoding="utf-8")
 
     subprocess.run(["git", "add", "."], check=True)
 
+    session_id = Path(filename).stem
     commit_cmd = ["git", "commit", "-m", f"auto upload {session_id}"]
     commit_run = subprocess.run(commit_cmd, capture_output=True, text=True)
     if commit_run.returncode != 0:
@@ -78,7 +108,7 @@ def publish_rendered_file(session_id, content):
 
     subprocess.run(["git", "push"], check=True)
 
-    return f"https://raw.githubusercontent.com/{REPO}/main/data/rendered/{session_id}.json"
+    return f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{REPO_NAME}/main/data/rendered/{filename}"
 
 
 # ========= MAIN LOOP =========
@@ -134,8 +164,10 @@ def run():
                 prompt_text = json.dumps(output, ensure_ascii=False, indent=2)
 
                 # 4. Save rendered file + git upload
-                session_id = f"{sheet_config['name']}_row_{i}_{int(time.time())}"
-                github_link = publish_rendered_file(session_id, prompt_text)
+                date_str = time.strftime("%Y-%m-%d")
+                filename = build_render_filename(row, sheet_config["name"], date_str)
+                print("FINAL FILENAME:", filename)
+                github_link = publish_rendered_file(filename, prompt_text)
 
                 # 5. Update sheet
                 sheet.update_cell(i, col_map["Prompt"], github_link)
