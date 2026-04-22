@@ -19,12 +19,14 @@ class PromptEngine:
         environment = self._clean_sentence(visual_plan.get("environment", "Neutral indoor light"))
         camera_value = str(segment.get("camera", "medium")).strip().lower()
         motion = self._clean_sentence(visual_plan.get("motion", "minor background movement"))
+        segment_index = max(0, int(float(segment.get("start", 0.0)) // 6))
+        human_subject = self._has_human_subject(subject, details_items)
 
-        physical_action = self.build_physical_action(subject, motion, camera_value)
-        light_behavior = self.build_light_behavior(environment, details)
-        body_tension = self.build_body_tension_layer(motion, details)
-        camera_intent = self.build_camera_intent(camera_value)
-        frame_evolution = self.build_frame_evolution(camera_value)
+        physical_action = self.build_physical_action(subject, motion, camera_value, segment_index, human_subject)
+        light_behavior = self.build_light_behavior(environment, details, segment_index)
+        body_tension = self.build_body_tension_layer(motion, details, segment_index, human_subject)
+        camera_intent = self.build_camera_intent(camera_value, segment_index)
+        frame_evolution = self.build_frame_evolution(camera_value, segment_index)
 
         shot_safe_motion = self._motion_for_shot(
             camera=camera_value,
@@ -54,49 +56,110 @@ class PromptEngine:
             deduped.append(line)
         return "\n\n".join(deduped)
 
-    def build_physical_action(self, subject: str, motion: str, camera: str) -> str:
+    def build_physical_action(
+        self,
+        subject: str,
+        motion: str,
+        camera: str,
+        segment_index: int,
+        human_subject: bool,
+    ) -> str:
         base_subject = subject.rstrip(".")
+        if not human_subject:
+            variants = (
+                f"{base_subject}; foreground objects settle before fine particles shift",
+                f"{base_subject}; object positions hold while small surface elements move",
+                f"{base_subject}; frame starts stable, then a slight object shift appears",
+            )
+            return variants[segment_index % len(variants)]
         if camera == "close":
-            return (
-                f"{base_subject}; weight shifts first, then the hand follows with slight delay, "
-                "and the smallest paper edge responds a beat later"
+            variants = (
+                f"{base_subject}; weight shifts first, then the hand follows with slight delay",
+                f"{base_subject}; wrist adjusts first, then finger position follows a moment later",
+                f"{base_subject}; posture holds, then a small hand correction lands at the end",
             )
+            return variants[segment_index % len(variants)]
         if camera == "wide":
-            return (
-                f"{base_subject}; weight shifts first, then the body follows with slight delay, "
-                "while movement stays restrained in the full frame"
+            variants = (
+                f"{base_subject}; weight shifts first, then the body follows with slight delay",
+                f"{base_subject}; stance changes in two steps, feet first and shoulders second",
+                f"{base_subject}; body weight transfers gradually before the frame settles",
             )
-        return (
-            f"{base_subject}; weight transfers through the feet before the torso follows, "
-            "with a brief pause before the final adjustment"
+            return variants[segment_index % len(variants)]
+        variants = (
+            f"{base_subject}; weight transfers through the feet before the torso follows",
+            f"{base_subject}; center of weight moves first, then shoulders align",
+            f"{base_subject}; posture adjusts in sequence, lower body then upper body",
         )
+        return variants[segment_index % len(variants)]
 
-    def build_light_behavior(self, environment: str, details: str) -> str:
+    def build_light_behavior(self, environment: str, details: str, segment_index: int) -> str:
         env = environment.rstrip(".")
-        return (
-            f"{env}; uneven light wraps softly across surfaces, "
-            "with falloff at frame edges and dim pockets behind foreground objects"
+        variants = (
+            f"{env}; uneven light wraps across surfaces with falloff at the frame edges",
+            f"{env}; light stays irregular, with dim zones behind foreground objects",
+            f"{env}; soft wrap remains on primary objects while side areas stay darker",
         )
+        return variants[segment_index % len(variants)]
 
-    def build_body_tension_layer(self, motion: str, details: str) -> str:
-        return (
-            "Breath stays shallow, shoulders hold slight tension, fingers remain controlled, "
-            "and the jaw line stays set without overt expression"
+    def build_body_tension_layer(self, motion: str, details: str, segment_index: int, human_subject: bool) -> str:
+        if not human_subject:
+            variants = (
+                "Dust particles remain visible near the window line",
+                "Light changes slightly across object edges and surface texture",
+                "Small object shifts are visible along the table surface",
+            )
+            return variants[segment_index % len(variants)]
+        variants = (
+            "Breath stays shallow, shoulders hold slight tension, and hands remain controlled",
+            "Shoulders stay braced, jaw line stays set, and breath remains short",
+            "Hands stay steady, shoulder tension remains visible, and breath is restrained",
         )
+        return variants[segment_index % len(variants)]
 
-    def build_camera_intent(self, camera: str) -> str:
+    def build_camera_intent(self, camera: str, segment_index: int) -> str:
         if camera == "wide":
-            return "Wide framing that observes spatial balance before slowly tightening attention"
+            variants = (
+                "Wide framing holds full spatial context and then tightens slightly",
+                "Wide framing keeps room geometry clear before a subtle inward shift",
+                "Wide framing observes the full scene and reduces distance gradually",
+            )
+            return variants[segment_index % len(variants)]
         if camera == "close":
-            return "Close framing that commits to surface detail while holding controlled distance"
-        return "Medium framing that slowly closes distance without fully committing"
+            variants = (
+                "Close framing stays on surface detail with steady distance control",
+                "Close framing remains tight on texture and edge movement",
+                "Close framing keeps detail priority with minimal reframing",
+            )
+            return variants[segment_index % len(variants)]
+        variants = (
+            "Medium framing closes distance slowly with stable alignment",
+            "Medium framing tracks object relation while reducing space gradually",
+            "Medium framing advances slightly and maintains balanced composition",
+        )
+        return variants[segment_index % len(variants)]
 
-    def build_frame_evolution(self, camera: str) -> str:
+    def build_frame_evolution(self, camera: str, segment_index: int) -> str:
         if camera == "wide":
-            return "Within 6 seconds the frame tightens subtly, drift compresses depth, and balance shifts inward"
+            variants = (
+                "Over 6 seconds the frame tightens slightly and center balance shifts inward",
+                "Over 6 seconds the frame drifts forward and depth compresses softly",
+                "Over 6 seconds framing narrows a little and object spacing becomes denser",
+            )
+            return variants[segment_index % len(variants)]
         if camera == "close":
-            return "Within 6 seconds the frame compresses slightly, focus tightens, and micro-shifts settle into stillness"
-        return "Within 6 seconds the frame drifts forward, compresses gently, and settles into a tighter center"
+            variants = (
+                "Over 6 seconds the frame compresses slightly and micro-shifts settle",
+                "Over 6 seconds focus tightens and edge movement slows",
+                "Over 6 seconds framing remains tight while detail balance shifts slightly",
+            )
+            return variants[segment_index % len(variants)]
+        variants = (
+            "Over 6 seconds the frame moves forward slightly and settles toward center",
+            "Over 6 seconds the frame compresses gently and maintains object balance",
+            "Over 6 seconds the frame drifts inward and then stabilizes",
+        )
+        return variants[segment_index % len(variants)]
 
     @staticmethod
     def _details_line(details: Any) -> str:
@@ -158,3 +221,22 @@ class PromptEngine:
         if text[-1] not in ".!?":
             text += "."
         return text
+
+    @staticmethod
+    def _has_human_subject(subject: str, details: Any) -> bool:
+        source = str(subject).lower()
+        if isinstance(details, list):
+            source += " " + " ".join(str(item).lower() for item in details)
+        human_words = (
+            "person",
+            "people",
+            "woman",
+            "man",
+            "character",
+            "face",
+            "hand",
+            "human",
+            "worker",
+            "body",
+        )
+        return any(word in source for word in human_words)
