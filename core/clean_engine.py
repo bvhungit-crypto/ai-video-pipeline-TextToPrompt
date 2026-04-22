@@ -10,10 +10,10 @@ class CleanEngine:
         "within 6 seconds",
     )
 
-    LOGIC_WORDS = (
-        "then",
-        "before",
-        "while",
+    LOGIC_WORDS = tuple()
+    EXPLANATORY_PHRASES = (
+        "as if",
+        "suggesting",
     )
 
     HUMAN_WORDS = (
@@ -39,6 +39,8 @@ class CleanEngine:
 
             line = self._remove_phrases(line, self.TIMELINE_PHRASES)
             line = self._remove_phrases(line, self.LOGIC_WORDS)
+            line = self._remove_phrases(line, self.EXPLANATORY_PHRASES)
+            line = line.replace(" while ", ", ")
             if not has_character:
                 line = self._remove_phrases(line, self.HUMAN_WORDS)
 

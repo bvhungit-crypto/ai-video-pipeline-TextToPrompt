@@ -24,16 +24,21 @@ class PromptEngine:
 
         physical_action = self.build_physical_action(subject, motion, camera_value, segment_index, human_subject)
         light_behavior = self.build_light_behavior(environment, details, segment_index)
-        body_tension = self.build_body_tension_layer(motion, details, segment_index, human_subject)
-        camera_intent = self.build_camera_intent(camera_value, segment_index)
-        frame_evolution = self.build_frame_evolution(camera_value, segment_index)
-
         shot_safe_motion = self._motion_for_shot(
             camera=camera_value,
             motion=motion,
             details=details_items,
             environment=environment,
         )
+        body_tension = self.build_body_tension_layer(
+            motion,
+            details,
+            segment_index,
+            human_subject,
+            shot_safe_motion,
+        )
+        camera_intent = self.build_camera_intent(camera_value, segment_index)
+        frame_evolution = self.build_frame_evolution(camera_value, segment_index)
 
         lines = [
             self._clean_sentence(self.style_line),
@@ -67,29 +72,29 @@ class PromptEngine:
         base_subject = subject.rstrip(".")
         if not human_subject:
             variants = (
-                f"{base_subject}; foreground objects settle before fine particles shift",
-                f"{base_subject}; object positions hold, small surface elements move",
-                f"{base_subject}; frame starts stable, then a slight object shift appears",
+                f"{base_subject}; foreground objects remain stable, fine particles shift near surfaces",
+                f"{base_subject}; object positions remain fixed, small surface elements move",
+                f"{base_subject}; frame stays stable, a slight object shift appears near the edge",
             )
             return variants[segment_index % len(variants)]
         if camera == "close":
             variants = (
-                f"{base_subject}; weight shifts first, then the hand follows with slight delay",
-                f"{base_subject}; wrist adjusts first, then finger position follows a moment later",
-                f"{base_subject}; posture holds, then a small hand correction lands at the end",
+                f"{base_subject}; weight shift appears first, hand movement follows with slight delay",
+                f"{base_subject}; wrist adjustment appears first, finger position changes a moment later",
+                f"{base_subject}; posture remains steady, a small hand correction appears at the end",
             )
             return variants[segment_index % len(variants)]
         if camera == "wide":
             variants = (
-                f"{base_subject}; weight shifts first, then the body follows with slight delay",
-                f"{base_subject}; stance changes in two steps, feet first and shoulders second",
-                f"{base_subject}; body weight transfers gradually before the frame settles",
+                f"{base_subject}; weight shift appears first, body movement follows with slight delay",
+                f"{base_subject}; stance changes in two stages, feet first, shoulders second",
+                f"{base_subject}; body weight transfers gradually, frame settles at the end",
             )
             return variants[segment_index % len(variants)]
         variants = (
-            f"{base_subject}; weight transfers through the feet before the torso follows",
-            f"{base_subject}; center of weight moves first, then shoulders align",
-            f"{base_subject}; posture adjusts in sequence, lower body then upper body",
+            f"{base_subject}; weight transfers through the feet, torso follows after a short delay",
+            f"{base_subject}; center of weight changes first, shoulders align after the shift",
+            f"{base_subject}; posture adjusts in sequence, lower body first, upper body second",
         )
         return variants[segment_index % len(variants)]
 
@@ -102,13 +107,34 @@ class PromptEngine:
         )
         return variants[segment_index % len(variants)]
 
-    def build_body_tension_layer(self, motion: str, details: str, segment_index: int, human_subject: bool) -> str:
+    def build_body_tension_layer(
+        self,
+        motion: str,
+        details: str,
+        segment_index: int,
+        human_subject: bool,
+        shot_safe_motion: str,
+    ) -> str:
         if not human_subject:
-            variants = (
-                "Dust particles remain visible near the window line",
-                "Light changes slightly across object edges and surface texture",
-                "Small object shifts are visible along the table surface",
-            )
+            shot_motion = shot_safe_motion.lower()
+            if "dust" in shot_motion:
+                variants = (
+                    "Light intensity changes slightly across object edges",
+                    "Small object shifts remain visible on the table line",
+                    "Surface reflections change slightly across metal and paper",
+                )
+            elif "light" in shot_motion or "reflection" in shot_motion:
+                variants = (
+                    "Dust remains visible near the window line",
+                    "Small object shifts remain visible near the table edge",
+                    "Surface particles settle on paper and metal surfaces",
+                )
+            else:
+                variants = (
+                    "Dust remains visible near the window line",
+                    "Light changes slightly across object edges",
+                    "Small object shifts remain visible on the table surface",
+                )
             return variants[segment_index % len(variants)]
         variants = (
             "Breath stays shallow, shoulders hold slight tension, and hands remain controlled",
@@ -120,9 +146,9 @@ class PromptEngine:
     def build_camera_intent(self, camera: str, segment_index: int) -> str:
         if camera == "wide":
             variants = (
-                "Wide framing holds full spatial context and then tightens slightly",
-                "Wide framing keeps room geometry clear before a subtle inward shift",
-                "Wide framing keeps the full scene in view and reduces distance gradually",
+                "Wide framing holds full spatial context and drifts slightly inward",
+                "Wide framing keeps room geometry clear with a subtle inward drift",
+                "Wide framing keeps the full scene in view with gradual distance change",
             )
             return variants[segment_index % len(variants)]
         if camera == "close":
@@ -142,22 +168,22 @@ class PromptEngine:
     def build_frame_evolution(self, camera: str, segment_index: int) -> str:
         if camera == "wide":
             variants = (
-                "Over 6 seconds the frame tightens slightly and center balance shifts inward",
-                "Over 6 seconds the frame drifts forward and depth compresses softly",
-                "Over 6 seconds framing narrows a little and object spacing becomes denser",
+                "Frame balance shifts inward with a subtle drift",
+                "Frame drifts forward and depth compresses softly",
+                "Framing narrows slightly and object spacing becomes denser",
             )
             return variants[segment_index % len(variants)]
         if camera == "close":
             variants = (
-                "Over 6 seconds the frame compresses slightly and micro-shifts settle",
-                "Over 6 seconds focus tightens and edge movement slows",
-                "Over 6 seconds framing remains tight, detail balance shifts slightly",
+                "Frame compresses slightly and micro-shifts settle",
+                "Edge movement slows across surface detail",
+                "Framing remains tight and detail balance shifts slightly",
             )
             return variants[segment_index % len(variants)]
         variants = (
-            "Over 6 seconds the frame moves forward slightly and settles toward center",
-            "Over 6 seconds the frame compresses gently and maintains object balance",
-            "Over 6 seconds the frame drifts inward and then stabilizes",
+            "Frame moves forward slightly and settles near center",
+            "Frame compresses gently and maintains object balance",
+            "Frame drifts inward and stabilizes",
         )
         return variants[segment_index % len(variants)]
 
