@@ -4,12 +4,14 @@ from core.camera_imperfection_engine import CameraImperfectionEngine
 from core.clean_engine import CleanEngine
 from core.environment_motion_engine import EnvironmentMotionEngine
 from core.packaging_engine import PackagingEngine
+from core.scene_analysis_engine import SceneAnalysisEngine
 from core.style_presets import STYLE_PRESETS
 
 
 class MontagePipeline:
     def __init__(self, style: str = "documentary") -> None:
         self._packaging_engine = PackagingEngine()
+        self._scene_analysis_engine = SceneAnalysisEngine()
         self.style_line = STYLE_PRESETS.get(style, STYLE_PRESETS["documentary"])
         self._clean_engine = CleanEngine()
         self._environment_motion_engine = EnvironmentMotionEngine()
@@ -22,6 +24,7 @@ class MontagePipeline:
         mode: str | None = None,
     ) -> list[dict]:
         segments = self._packaging_engine.package(timeline)
+        segments = self._scene_analysis_engine.analyze(segments)
         output: list[dict] = []
         used_motion_lines: set[str] = set()
         for index, seg in enumerate(segments):

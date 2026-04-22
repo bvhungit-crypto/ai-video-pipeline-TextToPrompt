@@ -15,12 +15,15 @@ class PromptEngine:
         visual_plan = segment.get("visual_plan", {})
         subject = self._clean_sentence(visual_plan.get("subject", "Office room with wooden desk and paper stacks"))
         details_items = visual_plan.get("details", [])
+        segment_objects = segment.get("objects", [])
+        if isinstance(segment_objects, list) and segment_objects:
+            details_items = segment_objects
         details = self._details_line(details_items)
         environment = self._clean_sentence(visual_plan.get("environment", "Neutral indoor light"))
         camera_value = str(segment.get("camera", "medium")).strip().lower()
         motion = self._clean_sentence(visual_plan.get("motion", "minor background movement"))
         segment_index = max(0, int(float(segment.get("start", 0.0)) // 6))
-        human_subject = self._has_human_subject(subject, details_items)
+        human_subject = bool(segment.get("has_human", self._has_human_subject(subject, details_items)))
 
         physical_action = self.build_physical_action(subject, motion, camera_value, segment_index, human_subject)
         light_behavior = self.build_light_behavior(environment, details, segment_index)

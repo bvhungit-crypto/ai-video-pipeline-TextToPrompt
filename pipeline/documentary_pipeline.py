@@ -5,6 +5,7 @@ from core.clean_engine import CleanEngine
 from core.environment_motion_engine import EnvironmentMotionEngine
 from core.packaging_engine import PackagingEngine
 from core.prompt_engine import PromptEngine
+from core.scene_analysis_engine import SceneAnalysisEngine
 from core.scene_engine import SceneEngine
 from core.visual_planning_engine import VisualPlanningEngine
 
@@ -13,6 +14,7 @@ class DocumentaryPipeline:
     def __init__(self, style: str = "documentary", mode: str = "documentary") -> None:
         self._packaging_engine = PackagingEngine()
         self._visual_planning_engine = VisualPlanningEngine()
+        self._scene_analysis_engine = SceneAnalysisEngine()
         self._scene_engine = SceneEngine()
         self._prompt_engine = PromptEngine(style=style, mode=mode)
         self._clean_engine = CleanEngine()
@@ -29,6 +31,7 @@ class DocumentaryPipeline:
     ) -> list[dict]:
         segments = self._packaging_engine.package(timeline)
         segments = self._visual_planning_engine.plan(segments)
+        segments = self._scene_analysis_engine.analyze(segments)
         segments = self._scene_engine.enhance(segments, mode=self.mode)
         output: list[dict] = []
         used_motion_lines: set[str] = set()

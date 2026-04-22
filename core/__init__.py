@@ -6,4 +6,5 @@ from .packaging_engine import PackagingEngine
 from .prompt_engine import PromptEngine
 from .shot_scoring_engine import ShotScoringEngine
 from .timeline_engine import TimelineEngine
+from .scene_analysis_engine import SceneAnalysisEngine
 from .visual_planning_engine import VisualPlanningEngine
