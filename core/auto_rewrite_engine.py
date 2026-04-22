@@ -4,7 +4,7 @@ import re
 
 
 class AutoRewriteEngine:
-    def rewrite(self, prompt: str, segment: dict) -> str:
+    def rewrite(self, segment: dict, prompt: str = "") -> str:
         source = self._source_text(prompt, segment).lower()
         has_human = self._has_human(source)
         environment = self._environment_line(source)

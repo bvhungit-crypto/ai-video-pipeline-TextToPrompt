@@ -2,12 +2,12 @@
   {
     "start": 0,
     "end": 6,
-    "prompt": "documentary realism, handheld camera, natural lighting, observational tone.\n\nOffice room with wooden desk, metal shelves, and paper stacks; foreground objects remain stable, fine particles shift near surfaces.\n\nneutral indoor light; uneven light wraps across surfaces with falloff at the frame edges.\n\nLight intensity changes slightly across object edges.\n\nWide framing holds full spatial context and drifts slightly inward.\n\nFrame balance shifts inward with a subtle drift.\n\nwood grain on desk, paper folders, metal shelf frame.\n\nDust particles are visible in the light beam.\n\nLight flicker appears on the back wall.\n\nDuration: 6 seconds"
+    "prompt": "Office room with clear foreground and background separation.\n\nWood desk, paper stack, shelf labels, and wall clock are visible.\n\nDiffuse daylight spreads through moisture and soft window reflection.\n\nA small hand adjustment appears with restrained body movement.\n\nMedium frame settles with slight inward drift.\n\nDuration: 6 seconds"
   },
   {
     "start": 6,
     "end": 12,
-    "prompt": "documentary realism, handheld camera, natural lighting, observational tone.\n\nDesk area with folders, printed documents, and a desktop monitor; object positions remain fixed, small surface elements move.\n\nneutral indoor light; light stays irregular, with dim zones behind foreground objects.\n\nSmall object shifts remain visible near the table edge.\n\nMedium framing tracks object relation, reducing space gradually.\n\nFrame compresses gently and maintains object balance.\n\nprinted report pages, plastic file tray, keyboard cable.\n\nLoose cable moves slightly near the desk edge.\n\nSmall shadow movement appears near the shelf edge.\n\nDuration: 6 seconds"
+    "prompt": "documentary realism, handheld camera, natural lighting, observational tone.\n\nDesk area with folders, printed documents, and a desktop monitor; object positions remain fixed, small surface elements move.\n\nSmall object shifts remain visible near the table edge.\n\nMedium framing holds object relation, reducing space gradually.\n\nprinted report pages, plastic file tray, keyboard cable.\n\nDuration: 6 seconds"
   },
   {
     "start": 12,

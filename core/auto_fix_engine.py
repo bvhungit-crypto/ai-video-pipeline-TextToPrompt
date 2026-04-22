@@ -12,6 +12,12 @@ class AutoFixEngine:
     )
 
     HUMAN_WORDS = (
+        "she",
+        "he",
+        "person",
+        "man",
+        "woman",
+        "character",
         "breath",
         "shoulder",
         "posture",
@@ -22,8 +28,11 @@ class AutoFixEngine:
 
     CAMERA_REPLACEMENTS = (
         (r"\bslow push-?in\b", "a slight inward drift"),
-        (r"\btightens\b", "settles slightly closer"),
-        (r"\bfocuses\b", "holds attention"),
+        (r"\btighten(s|ed|ing)?\b", "settles"),
+        (r"\bfocus(es|ed|ing)?\b", "holds attention"),
+        (r"\btrack(s|ed|ing)?\b", "holds"),
+        (r"\breduce(s|d|ing)?\b", "settles"),
+        (r"\bbalance shift(s)?\b", "frame settles"),
     )
 
     def fix(self, prompt: str, has_human: bool = False) -> str:
@@ -37,6 +46,7 @@ class AutoFixEngine:
         sentence_parts = [self._normalize_sentence(s) for s in self._split_sentences(text)]
         sentence_parts = [s for s in sentence_parts if s]
         deduped = self._dedupe_similar_sentences(sentence_parts)
+        deduped = self._dedupe_concepts(deduped)
         joined = "\n\n".join(deduped)
         joined = self._dedupe_lines(joined)
         return self._normalize_spacing(joined)
@@ -87,6 +97,28 @@ class AutoFixEngine:
             if any(self._jaccard(sig, existing) >= 0.75 for existing in signatures):
                 continue
             signatures.append(sig)
+            kept.append(sentence)
+        return kept
+
+    def _dedupe_concepts(self, sentences: list[str]) -> list[str]:
+        concept_map = {
+            "dust": ("dust", "particle", "particles"),
+            "light": ("light", "shadow", "reflection"),
+            "motion": ("moves", "drift", "shift", "settle", "sway"),
+            "camera": ("camera", "frame", "shot"),
+        }
+        kept: list[str] = []
+        seen_concepts: set[str] = set()
+        for sentence in sentences:
+            lowered = sentence.lower()
+            sentence_concepts = {
+                concept
+                for concept, tokens in concept_map.items()
+                if any(token in lowered for token in tokens)
+            }
+            if sentence_concepts and sentence_concepts.issubset(seen_concepts):
+                continue
+            seen_concepts.update(sentence_concepts)
             kept.append(sentence)
         return kept
 
