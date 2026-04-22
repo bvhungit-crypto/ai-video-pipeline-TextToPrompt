@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from core.camera_imperfection_engine import CameraImperfectionEngine
+from core.clean_engine import CleanEngine
+from core.environment_motion_engine import EnvironmentMotionEngine
 from core.packaging_engine import PackagingEngine
 from core.prompt_engine import PromptEngine
 from core.scene_engine import SceneEngine
@@ -12,6 +15,9 @@ class DocumentaryPipeline:
         self._visual_planning_engine = VisualPlanningEngine()
         self._scene_engine = SceneEngine()
         self._prompt_engine = PromptEngine(style=style, mode=mode)
+        self._clean_engine = CleanEngine()
+        self._environment_motion_engine = EnvironmentMotionEngine()
+        self._camera_imperfection_engine = CameraImperfectionEngine()
         self.style = style
         self.mode = mode
 
@@ -24,11 +30,19 @@ class DocumentaryPipeline:
         segments = self._packaging_engine.package(timeline)
         segments = self._visual_planning_engine.plan(segments)
         segments = self._scene_engine.enhance(segments, mode=self.mode)
-        return [
-            {
-                "start": seg["start"],
-                "end": seg["end"],
-                "prompt": self._prompt_engine.build(seg),
-            }
-            for seg in segments
-        ]
+        output: list[dict] = []
+        used_motion_lines: set[str] = set()
+        for seg in segments:
+            prompt = self._prompt_engine.build(seg)
+            has_character = self._has_character(seg.get("visual_plan", {}))
+            prompt = self._clean_engine.clean(prompt, has_character=has_character)
+            prompt = self._camera_imperfection_engine.apply(prompt)
+            prompt = self._environment_motion_engine.inject(prompt, used_lines=used_motion_lines)
+            output.append({"start": seg["start"], "end": seg["end"], "prompt": prompt})
+        return output
+
+    @staticmethod
+    def _has_character(visual_plan: dict) -> bool:
+        source = f"{visual_plan.get('subject', '')} {' '.join(visual_plan.get('details', []))}".lower()
+        human_words = ("person", "people", "man", "woman", "character", "worker", "face", "hand")
+        return any(word in source for word in human_words)

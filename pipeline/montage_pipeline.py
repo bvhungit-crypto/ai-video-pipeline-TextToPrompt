@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from core.camera_imperfection_engine import CameraImperfectionEngine
+from core.clean_engine import CleanEngine
+from core.environment_motion_engine import EnvironmentMotionEngine
 from core.packaging_engine import PackagingEngine
 from core.style_presets import STYLE_PRESETS
 
@@ -8,6 +11,9 @@ class MontagePipeline:
     def __init__(self, style: str = "documentary") -> None:
         self._packaging_engine = PackagingEngine()
         self.style_line = STYLE_PRESETS.get(style, STYLE_PRESETS["documentary"])
+        self._clean_engine = CleanEngine()
+        self._environment_motion_engine = EnvironmentMotionEngine()
+        self._camera_imperfection_engine = CameraImperfectionEngine()
 
     def run(
         self,
@@ -17,6 +23,7 @@ class MontagePipeline:
     ) -> list[dict]:
         segments = self._packaging_engine.package(timeline)
         output: list[dict] = []
+        used_motion_lines: set[str] = set()
         for index, seg in enumerate(segments):
             place = self._place(seg.get("text", ""), index)
             detail = self._detail(index)
@@ -30,6 +37,9 @@ class MontagePipeline:
                     "Duration: 6 seconds",
                 ]
             )
+            prompt = self._clean_engine.clean(prompt, has_character=False)
+            prompt = self._camera_imperfection_engine.apply(prompt)
+            prompt = self._environment_motion_engine.inject(prompt, used_lines=used_motion_lines)
             output.append({"start": seg["start"], "end": seg["end"], "prompt": prompt})
         return output
 
