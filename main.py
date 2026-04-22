@@ -165,11 +165,12 @@ def _apply_prompt_post_processing(
 ) -> list[dict[str, Any]]:
     fixed: list[dict[str, Any]] = []
     human_words = ("person", "man", "woman", "character", "worker")
+    previous_prompt = ""
     for item in output:
         prompt = str(item.get("prompt", ""))
         has_human = any(word in prompt.lower() for word in human_words)
         fixed_prompt = auto_fix_engine.fix(prompt, has_human=has_human)
-        result = critic.evaluate(fixed_prompt, item)
+        result = critic.evaluate(fixed_prompt, item, previous_prompt=previous_prompt)
         decision = critic.decision(result)
         print("CRITIC SCORE:", result["score"])
         print("ISSUES:", result["issues"])
@@ -180,6 +181,7 @@ def _apply_prompt_post_processing(
         elif decision == "REWRITE":
             fixed_prompt = auto_rewrite_engine.rewrite(item)
         fixed.append({**item, "prompt": fixed_prompt})
+        previous_prompt = fixed_prompt
     return fixed
 
 
