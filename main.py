@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Any
 from core import TimelineEngine
 from core.auto_fix_engine import AutoFixEngine
+from core.auto_rewrite_engine import AutoRewriteEngine
 from core.meta_controller import MetaController
+from core.quality_check import QualityCheck
 from pipeline import AnimationPipeline, DocumentaryPipeline, MontagePipeline
 
 
@@ -84,6 +86,8 @@ def run_pipeline(input_path: Path, output_path: Path) -> list[dict[str, Any]]:
 
     timeline_engine = TimelineEngine()
     auto_fix_engine = AutoFixEngine()
+    quality_check = QualityCheck()
+    auto_rewrite_engine = AutoRewriteEngine()
     pipeline_runner = _pipeline_runner(pipeline_type=pipeline_type, style=style, mode=mode)
 
     print("Building timeline...")
@@ -93,7 +97,7 @@ def run_pipeline(input_path: Path, output_path: Path) -> list[dict[str, Any]]:
 
     print("Generating prompts...")
     output = pipeline_runner.run(timeline, style=style, mode=mode)
-    output = _apply_auto_fix(output, auto_fix_engine)
+    output = _apply_prompt_post_processing(output, auto_fix_engine, quality_check, auto_rewrite_engine)
     if not output:
         print("Warning: no prompts were generated.")
 
@@ -135,11 +139,13 @@ def run_pipeline_from_text(
     print("PIPELINE TYPE:", pipeline_type)
     timeline_engine = TimelineEngine()
     auto_fix_engine = AutoFixEngine()
+    quality_check = QualityCheck()
+    auto_rewrite_engine = AutoRewriteEngine()
     pipeline_runner = _pipeline_runner(pipeline_type=pipeline_type, style=style, mode=mode)
 
     timeline = build_timeline(timeline_engine, srt_text)
     output = pipeline_runner.run(timeline, style=style, mode=mode)
-    output = _apply_auto_fix(output, auto_fix_engine)
+    output = _apply_prompt_post_processing(output, auto_fix_engine, quality_check, auto_rewrite_engine)
     return output
 
 
@@ -151,13 +157,20 @@ def _pipeline_runner(pipeline_type: str, style: str, mode: str):
     return DocumentaryPipeline(style=style, mode=mode)
 
 
-def _apply_auto_fix(output: list[dict[str, Any]], auto_fix_engine: AutoFixEngine) -> list[dict[str, Any]]:
+def _apply_prompt_post_processing(
+    output: list[dict[str, Any]],
+    auto_fix_engine: AutoFixEngine,
+    quality_check: QualityCheck,
+    auto_rewrite_engine: AutoRewriteEngine,
+) -> list[dict[str, Any]]:
     fixed: list[dict[str, Any]] = []
     human_words = ("she", "he", "person", "man", "woman")
     for item in output:
         prompt = str(item.get("prompt", ""))
         has_human = any(word in prompt.lower() for word in human_words)
         fixed_prompt = auto_fix_engine.fix(prompt, has_human=has_human)
+        if quality_check.is_bad(fixed_prompt):
+            fixed_prompt = auto_rewrite_engine.rewrite(fixed_prompt, item)
         fixed.append({**item, "prompt": fixed_prompt})
     return fixed
 
