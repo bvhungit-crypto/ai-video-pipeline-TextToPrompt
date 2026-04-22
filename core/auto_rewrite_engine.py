@@ -7,20 +7,20 @@ class AutoRewriteEngine:
     def rewrite(self, segment: dict, prompt: str = "") -> str:
         source = self._source_text(prompt, segment).lower()
         has_human = self._has_human(source)
+        style = self._style_line(source)
         environment = self._environment_line(source)
-        objects = self._object_line(source)
         light = self._light_line(source)
         motion = self._motion_line(source, has_human)
         camera = self._camera_line(segment)
-        duration = "Duration: 6 seconds"
 
+        # Strict cinematic order:
+        # 1) style, 2) environment, 3) light, 4) subtle motion, 5) camera
         lines = [
+            style,
             environment,
-            objects,
             light,
             motion,
             camera,
-            duration,
         ]
         cleaned = [self._sentence(line) for line in lines if line]
         deduped: list[str] = []
@@ -31,7 +31,18 @@ class AutoRewriteEngine:
                 continue
             seen.add(key)
             deduped.append(line)
-        return "\n\n".join(deduped[:6])
+        # Keep natural flow and minimum 4 sentences.
+        if len(deduped) < 4:
+            deduped.append("The camera holds briefly on the same area.")
+        return "\n\n".join(deduped[:5])
+
+    @staticmethod
+    def _style_line(source: str) -> str:
+        if "animation" in source or "2d" in source:
+            return "2D animation style, soft shading, simple camera movement."
+        if "surveillance" in source:
+            return "Surveillance style, fixed camera, low-resolution image."
+        return "Documentary realism, handheld camera, natural light."
 
     @staticmethod
     def _source_text(prompt: str, segment: dict) -> str:
@@ -47,55 +58,45 @@ class AutoRewriteEngine:
     @staticmethod
     def _environment_line(source: str) -> str:
         if "street" in source:
-            return "Street space with visible storefronts and pavement depth"
+            return "A city street extends past storefronts and wet pavement."
         if "factory" in source:
-            return "Factory room with metal structure and open floor space"
+            return "A factory room opens across metal structure and concrete floor."
         if "hallway" in source:
-            return "Hallway space with clear wall lines and floor depth"
-        return "Office room with clear foreground and background separation"
-
-    @staticmethod
-    def _object_line(source: str) -> str:
-        if "factory" in source:
-            return "Metal pipes, control panels, and tool cart are visible"
-        if "street" in source:
-            return "Road signs, parked vehicles, and curb markers are visible"
-        return "Wood desk, paper stack, shelf labels, and wall clock are visible"
+            return "A hallway stretches forward with plain walls and floor marks."
+        return "An office room holds a desk area near a window and rear wall."
 
     @staticmethod
     def _light_line(source: str) -> str:
         if "night" in source:
-            return "Low light remains uneven with darker edges and soft reflections"
+            return "Low light fades along the edges and leaves soft reflections on surfaces."
         if "rain" in source:
-            return "Diffuse daylight spreads through moisture and soft window reflection"
-        return "Light falls unevenly across surfaces with soft edge shadow"
+            return "Diffuse daylight spreads through moisture and soft window reflection."
+        return "Light falls unevenly across the room and wraps softly over nearby objects."
 
     @staticmethod
     def _motion_line(source: str, has_human: bool) -> str:
         if not has_human:
             if "dust" in source:
-                return "Dust particles remain visible in the light beam"
-            return "A paper corner shifts slightly near the desk edge"
-        return "A small hand adjustment appears with restrained body movement"
+                return "Dust particles drift slowly through the light beam."
+            return "A paper corner shifts slightly near the edge of the desk."
+        return "A small hand adjustment appears near the foreground object."
 
     @staticmethod
     def _camera_line(segment: dict) -> str:
         camera = str(segment.get("camera", "")).strip().lower() if isinstance(segment, dict) else ""
         if camera == "wide":
-            return "Wide frame holds with subtle drift and stable horizon"
+            return "The camera holds a wide view and drifts slightly inward."
         if camera == "close":
-            return "Close frame holds on surface detail with minor drift"
-        return "Medium frame settles with slight inward drift"
+            return "The camera holds close on surface detail with a slight drift."
+        return "The camera holds a medium view with gentle drift."
 
     @staticmethod
     def _sentence(value: str) -> str:
         text = " ".join(str(value).strip().split()).strip(" ,;.")
-        text = re.sub(r"\b(as if|suggesting|therefore|because)\b", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\b(as if|suggesting|therefore|because|balance|tension|emotion)\b", "", text, flags=re.IGNORECASE)
         text = " ".join(text.split()).strip(" ,;.")
         if not text:
             return ""
-        if text.lower().startswith("duration:"):
-            return text
         if text[-1] not in ".!?":
             text += "."
         return text
