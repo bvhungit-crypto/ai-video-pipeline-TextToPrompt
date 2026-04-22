@@ -46,6 +46,16 @@ class AutoFixEngine:
         "light spreads softly",
         "light breaks across surfaces",
     )
+    ABSTRACT_WORDS = (
+        "mood",
+        "feeling",
+        "emotion",
+        "cinematic",
+        "intention",
+        "suggestive",
+        "symbolic",
+        "dramatic",
+    )
 
     COMMON_VERBS = {
         "is",
@@ -81,8 +91,6 @@ class AutoFixEngine:
         text = str(prompt or "")
         text = self._replace_camera_phrases(text)
         text = self._remove_words(text, self.AI_WORDS)
-        if not has_human:
-            text = self._remove_words(text, self.HUMAN_WORDS)
         text = self._normalize_spacing(text)
 
         sentence_parts = self._split_sentences(text)
@@ -92,15 +100,20 @@ class AutoFixEngine:
             if not cleaned:
                 continue
             cleaned = self._remove_causal_phrases(cleaned)
+            cleaned = self._rewrite_abstract_sentence(cleaned)
+            if not has_human:
+                cleaned = self._replace_human_with_observational(cleaned)
             if len(cleaned.split()) < 4:
-                continue
+                cleaned = self._replace_short_sentence(cleaned)
             if not self._has_subject_and_verb(cleaned):
-                continue
+                cleaned = self._replace_invalid_sentence(cleaned)
             filtered.append(cleaned)
 
         deduped = self._dedupe_similar_sentences(filtered)
         deduped = self._dedupe_concepts(deduped)
         deduped = self._rephrase_one_sentence(deduped)
+        deduped = self._ensure_required_components(deduped)
+        deduped = self._ensure_minimum_sentences(deduped, minimum=5)
         joined = "\n\n".join(deduped)
         joined = self._dedupe_lines(joined)
         return self._normalize_spacing(joined)
@@ -193,6 +206,30 @@ class AutoFixEngine:
             output += "."
         return output
 
+    def _rewrite_abstract_sentence(self, sentence: str) -> str:
+        lowered = sentence.lower()
+        if any(word in lowered for word in self.ABSTRACT_WORDS):
+            return "Visible surfaces and object edges remain clear under uneven light."
+        return sentence
+
+    def _replace_human_with_observational(self, sentence: str) -> str:
+        lowered = sentence.lower()
+        if any(word in lowered for word in self.HUMAN_WORDS):
+            return "Dust particles shift near the window and small object edges move slightly."
+        return sentence
+
+    @staticmethod
+    def _replace_short_sentence(sentence: str) -> str:
+        if sentence.lower().startswith("duration:"):
+            return sentence
+        return "Table, shelf, and paper details remain visible in the frame."
+
+    @staticmethod
+    def _replace_invalid_sentence(sentence: str) -> str:
+        if sentence.lower().startswith("duration:"):
+            return sentence
+        return "Object positions remain clear and surface detail stays visible."
+
     def _rephrase_one_sentence(self, sentences: list[str]) -> list[str]:
         if not sentences:
             return sentences
@@ -219,6 +256,49 @@ class AutoFixEngine:
         updated_sentences = list(sentences)
         updated_sentences[target] = updated
         return updated_sentences
+
+    def _ensure_required_components(self, sentences: list[str]) -> list[str]:
+        has_duration = any(s.lower().startswith("duration:") for s in sentences)
+        has_environment = any(
+            any(w in s.lower() for w in ("room", "space", "hallway", "street", "office", "factory"))
+            for s in sentences
+        )
+        has_objects = any(
+            any(w in s.lower() for w in ("desk", "paper", "table", "shelf", "chair", "window", "folder"))
+            for s in sentences
+        )
+        has_light = any(any(w in s.lower() for w in ("light", "shadow", "reflection")) for s in sentences)
+        has_motion = any(
+            any(w in s.lower() for w in ("moves", "drift", "shifts", "settles", "flicker", "sways"))
+            for s in sentences
+        )
+
+        output = list(sentences)
+        if not has_environment:
+            output.append("Office room space remains visible with clear depth from front to back.")
+        if not has_objects:
+            output.append("Wood desk, paper stack, and shelf labels are visible in frame.")
+        if not has_light:
+            output.append("Light falls unevenly across surfaces with softer shadow near the edges.")
+        if not has_motion:
+            output.append("A paper corner shifts slightly near the front edge of the desk.")
+        if not has_duration:
+            output.append("Duration: 6 seconds")
+        return output
+
+    @staticmethod
+    def _ensure_minimum_sentences(sentences: list[str], minimum: int = 5) -> list[str]:
+        fillers = (
+            "Background wall texture remains visible with minor contrast variation.",
+            "Object spacing stays clear across the middle section of the frame.",
+            "Window light remains soft with gradual falloff near the side wall.",
+        )
+        output = list(sentences)
+        idx = 0
+        while len([s for s in output if not s.lower().startswith("duration:")]) < minimum:
+            output.append(fillers[idx % len(fillers)])
+            idx += 1
+        return output
 
     @staticmethod
     def _signature(sentence: str) -> set[str]:
